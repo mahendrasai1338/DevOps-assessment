@@ -71,5 +71,8 @@ jobs:
         run: kubectl rollout status deployment/sample-app --timeout=180s
 
       - name: Rollback on failure
-        if: failure()
-        run: kubectl rollout undo deployment/sample-app
+        if: ${{ failure() }}
+        continue-on-error: true
+        run: |
+          kubectl config current-context || true
+          kubectl rollout undo deployment/sample-app || true
