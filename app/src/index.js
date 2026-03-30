@@ -15,7 +15,7 @@ const counter = new client.Counter({
 app.get("/", (req, res) => {
   counter.inc();
   res.json({
-    message: "CI CD deployment is working",
+    message: "CI CD deployment working",
     environment: process.env.APP_ENV || "dev",
     timestamp: new Date()
   });
