@@ -33,21 +33,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Login to ECR
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build image
+      - name: Build Docker image
         working-directory: ./app
         run: docker build -t sample-devops-app:${{ github.sha }} .
 
-      - name: Tag image
+      - name: Tag Docker image
         run: docker tag sample-devops-app:${{ github.sha }} 833453046510.dkr.ecr.us-east-1.amazonaws.com/sample-devops-app:${{ github.sha }}
 
-      - name: Push image
+      - name: Push Docker image
         run: docker push 833453046510.dkr.ecr.us-east-1.amazonaws.com/sample-devops-app:${{ github.sha }}
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --region us-east-1 --name devops-eks-cluster
+
+      - name: Verify cluster access
+        run: |
+          kubectl config current-context
+          kubectl get nodes
 
       - name: Deploy with Helm
         run: helm upgrade --install sample-app ./helm/sample-app -f ./helm/sample-app/values-dev.yaml --set image.tag=${{ github.sha }}
