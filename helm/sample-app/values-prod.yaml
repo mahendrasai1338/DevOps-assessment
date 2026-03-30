@@ -1,0 +1,10 @@
+replicaCount: 2
+
+image:
+  repository: 833453046510.dkr.ecr.us-east-1.amazonaws.com/sample-devops-app
+  tag: "1.0"
+  pullPolicy: Always
+
+service:
+  type: LoadBalancer
+  port: 3000
