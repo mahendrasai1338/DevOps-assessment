@@ -1,15 +1,12 @@
-name: CI Pipeline
+name: CI-CD Pipeline
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
-  build-test:
+  build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +26,35 @@ jobs:
         working-directory: ./app
         run: npm test
 
-      - name: Build Docker image
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
         working-directory: ./app
         run: docker build -t sample-devops-app:${{ github.sha }} .
+
+      - name: Tag image
+        run: docker tag sample-devops-app:${{ github.sha }} 833453046510.dkr.ecr.us-east-1.amazonaws.com/sample-devops-app:${{ github.sha }}
+
+      - name: Push image
+        run: docker push 833453046510.dkr.ecr.us-east-1.amazonaws.com/sample-devops-app:${{ github.sha }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region us-east-1 --name devops-eks-cluster
+
+      - name: Deploy with Helm
+        run: helm upgrade --install sample-app ./helm/sample-app -f ./helm/sample-app/values-dev.yaml --set image.tag=${{ github.sha }}
+
+      - name: Verify rollout
+        run: kubectl rollout status deployment/sample-app --timeout=180s
+
+      - name: Rollback on failure
+        if: failure()
+        run: kubectl rollout undo deployment/sample-app
